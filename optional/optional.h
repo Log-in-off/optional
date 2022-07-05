@@ -15,32 +15,84 @@ template <typename T>
 class Optional {
 public:
     Optional() = default;
-    Optional(const T& value);
-    Optional(T&& value);
-    Optional(const Optional& other);
-    Optional(Optional&& other);
+    Optional(const T& value)
+    {
 
-    Optional& operator=(const T& value);
-    Optional& operator=(T&& rhs);
-    Optional& operator=(const Optional& rhs);
-    Optional& operator=(Optional&& rhs);
+    }
+    Optional(T&& value)
+    {
 
-    ~Optional();
+    }
+    Optional(const Optional& other)
+    {
 
-    bool HasValue() const;
+    }
+    Optional(Optional&& other)
+    {
+
+    }
+
+    Optional& operator=(const T& value)
+    {
+
+    }
+    Optional& operator=(T&& rhs)
+    {
+
+    }
+    Optional& operator=(const Optional& rhs)
+    {
+
+    }
+    Optional& operator=(Optional&& rhs)
+    {
+
+    }
+
+    ~Optional()
+    {
+
+    }
+
+    bool HasValue() const
+    {
+
+    }
 
     // Операторы * и -> не должны делать никаких проверок на пустоту Optional.
     // Эти проверки остаются на совести программиста
-    T& operator*();
-    const T& operator*() const;
-    T* operator->();
-    const T* operator->() const;
+    T& operator*()
+    {
+
+    }
+    const T& operator*() const
+    {
+
+    }
+    T* operator->()
+    {
+
+    }
+    const T* operator->() const
+    {
+
+    }
 
     // Метод Value() генерирует исключение BadOptionalAccess, если Optional пуст
-    T& Value();
-    const T& Value() const;
+    T& Value()
+    {
+        if (!is_initialized_)
+            throw BadOptionalAccess{};
+    }
+    const T& Value() const
+    {
+        return Value();
+    }
 
-    void Reset();
+    void Reset()
+    {
+
+    }
 
 private:
     // alignas нужен для правильного выравнивания блока памяти
