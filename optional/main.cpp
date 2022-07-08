@@ -1,207 +1,162 @@
-#include "optional.h"
+#include "vector.h"
 
-#include <cassert>
+#include <stdexcept>
 
-struct C {
-    C() noexcept {
-        ++def_ctor;
-    }
-    C(const C& /*other*/) noexcept {
-        ++copy_ctor;
-    }
-    C(C&& /*other*/) noexcept {
-        ++move_ctor;
-    }
-    C& operator=(const C& other) noexcept {
-        if (this != &other) {
-            ++copy_assign;
+namespace {
+
+struct Obj {
+    Obj() {
+        if (default_construction_throw_countdown > 0) {
+            if (--default_construction_throw_countdown == 0) {
+                throw std::runtime_error("Oops");
+            }
         }
-        return *this;
-    }
-    C& operator=(C&& /*other*/) noexcept {
-        ++move_assign;
-        return *this;
-    }
-    ~C() {
-        ++dtor;
+        ++num_default_constructed;
     }
 
-    static size_t InstanceCount() {
-        return def_ctor + copy_ctor + move_ctor - dtor;
+    Obj(const Obj& other) {
+        if (other.throw_on_copy) {
+            throw std::runtime_error("Oops");
+        }
+        ++num_copied;
     }
 
-    static void Reset() {
-        def_ctor = 0;
-        copy_ctor = 0;
-        move_ctor = 0;
-        copy_assign = 0;
-        move_assign = 0;
-        dtor = 0;
+    Obj(Obj&& /*other*/) noexcept {
+        ++num_moved;
     }
 
-    inline static size_t def_ctor = 0;
-    inline static size_t copy_ctor = 0;
-    inline static size_t move_ctor = 0;
-    inline static size_t copy_assign = 0;
-    inline static size_t move_assign = 0;
-    inline static size_t dtor = 0;
+    Obj& operator=(const Obj& other) = default;
+    Obj& operator=(Obj&& other) = default;
+
+    ~Obj() {
+        ++num_destroyed;
+    }
+
+    static int GetAliveObjectCount() {
+        return num_default_constructed + num_copied + num_moved - num_destroyed;
+    }
+
+    static void ResetCounters() {
+        default_construction_throw_countdown = 0;
+        num_default_constructed = 0;
+        num_copied = 0;
+        num_moved = 0;
+        num_destroyed = 0;
+    }
+
+    bool throw_on_copy = false;
+
+    static inline int default_construction_throw_countdown = 0;
+    static inline int num_default_constructed = 0;
+    static inline int num_copied = 0;
+    static inline int num_moved = 0;
+    static inline int num_destroyed = 0;
 };
 
-void TestInitialization() {
-    C::Reset();
-    {
-        Optional<C> o;
-        assert(!o.HasValue());
-        assert(C::InstanceCount() == 0);
-    }
-    assert(C::InstanceCount() == 0);
+}  // namespace
 
-    C::Reset();
+void Test1() {
+    Obj::ResetCounters();
+    const size_t SIZE = 100500;
+    const size_t INDEX = 10;
+    const int MAGIC = 42;
     {
-        C c;
-        Optional<C> o(c);
-        assert(o.HasValue());
-        assert(C::def_ctor == 1 && C::copy_ctor == 1);
-        assert(C::InstanceCount() == 2);
-    }
-    assert(C::InstanceCount() == 0);
+        Vector<int> v;
+        assert(v.Capacity() == 0);
+        assert(v.Size() == 0);
 
-    C::Reset();
-    {
-        C c;
-        Optional<C> o(std::move(c));
-        assert(o.HasValue());
-        assert(C::def_ctor == 1 && C::move_ctor == 1 && C::copy_ctor == 0 && C::copy_assign == 0
-               && C::move_assign == 0);
-        assert(C::InstanceCount() == 2);
+        v.Reserve(SIZE);
+        assert(v.Capacity() == SIZE);
+        assert(v.Size() == 0);
     }
-    assert(C::InstanceCount() == 0);
+    {
+        Vector<int> v(SIZE);
+        const auto& cv(v);
+        assert(v.Capacity() == SIZE);
+        assert(v.Size() == SIZE);
+        assert(v[0] == 0);
+        assert(&v[0] == &cv[0]);
+        v[INDEX] = MAGIC;
+        assert(v[INDEX] == MAGIC);
+        assert(&v[100] - &v[0] == 100);
 
-    C::Reset();
-    {
-        C c;
-        Optional<C> o1(c);
-        const Optional<C> o2(o1);
-        assert(o1.HasValue());
-        assert(o2.HasValue());
-        assert(C::def_ctor == 1 && C::move_ctor == 0 && C::copy_ctor == 2 && C::copy_assign == 0
-               && C::move_assign == 0);
-        assert(C::InstanceCount() == 3);
+        v.Reserve(SIZE * 2);
+        assert(v.Size() == SIZE);
+        assert(v.Capacity() == SIZE * 2);
+        assert(v[INDEX] == MAGIC);
     }
-    assert(C::InstanceCount() == 0);
-
-    C::Reset();
     {
-        C c;
-        Optional<C> o1(c);
-        const Optional<C> o2(std::move(o1));
-        assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::move_ctor == 1 && C::copy_assign == 0
-               && C::move_assign == 0);
-        assert(C::InstanceCount() == 3);
+        Vector<int> v(SIZE);
+        v[INDEX] = MAGIC;
+        const auto v_copy(v);
+        assert(&v[INDEX] != &v_copy[INDEX]);
+        assert(v[INDEX] == v_copy[INDEX]);
     }
-    assert(C::InstanceCount() == 0);
+    {
+        Vector<Obj> v;
+        v.Reserve(SIZE);
+        assert(Obj::GetAliveObjectCount() == 0);
+    }
+    {
+        Vector<Obj> v(SIZE);
+        assert(Obj::GetAliveObjectCount() == SIZE);
+        v.Reserve(SIZE * 2);
+        assert(Obj::GetAliveObjectCount() == SIZE);
+    }
+    assert(Obj::GetAliveObjectCount() == 0);
 }
 
-void TestAssignment() {
-    Optional<C> o1;
-    Optional<C> o2;
-    {  // Assign a value to empty
-        C::Reset();
-        C c;
-        o1 = c;
-        assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::dtor == 0);
-    }
-    {  // Assign a non-empty to empty
-        C::Reset();
-        o2 = o1;
-        assert(C::copy_ctor == 1 && C::copy_assign == 0 && C::dtor == 0);
-    }
-    {  // Assign non empty to non-empty
-        C::Reset();
-        o2 = o1;
-        assert(C::copy_ctor == 0 && C::copy_assign == 1 && C::dtor == 0);
-    }
-    {  // Assign empty to non empty
-        C::Reset();
-        Optional<C> empty;
-        o1 = empty;
-        assert(C::copy_ctor == 0 && C::dtor == 1);
-        assert(!o1.HasValue());
-    }
-}
-
-void TestMoveAssignment() {
-    {  // Assign a value to empty
-        Optional<C> o1;
-        C::Reset();
-        C c;
-        o1 = std::move(c);
-        assert(C::def_ctor == 1 && C::move_ctor == 1 && C::dtor == 0);
-    }
-    {  // Assign a non-empty to empty
-        Optional<C> o1;
-        Optional<C> o2{C{}};
-        C::Reset();
-        o1 = std::move(o2);
-        assert(C::move_ctor == 1 && C::move_assign == 0 && C::dtor == 0);
-    }
-    {  // Assign non empty to non-empty
-        Optional<C> o1{C{}};
-        Optional<C> o2{C{}};
-        C::Reset();
-        o2 = std::move(o1);
-        assert(C::copy_ctor == 0 && C::move_assign == 1 && C::dtor == 0);
-    }
-    {  // Assign empty to non empty
-        Optional<C> o1{C{}};
-        C::Reset();
-        Optional<C> empty;
-        o1 = std::move(empty);
-        assert(C::copy_ctor == 0 && C::move_ctor == 0 && C::move_assign == 0 && C::dtor == 1);
-        assert(!o1.HasValue());
-    }
-}
-
-void TestValueAccess() {
-    using namespace std::literals;
+void Test2() {
+    const size_t SIZE = 100;
+    Obj::ResetCounters();
     {
-        Optional<std::string> o;
-        o = "hello"s;
-        assert(o.HasValue());
-        assert(o.Value() == "hello"s);
-        assert(&*o == &o.Value());
-        assert(o->length() == 5);
-    }
-    {
+        Obj::default_construction_throw_countdown = SIZE / 2;
         try {
-            Optional<int> o;
-            [[maybe_unused]] int v = o.Value();
-            assert(false);
-        } catch (const BadOptionalAccess& /*e*/) {
+            Vector<Obj> v(SIZE);
+            assert(false && "Exception is expected");
+        } catch (const std::runtime_error&) {
         } catch (...) {
-            assert(false);
+            // Unexpected error
+            assert(false && "Unexpected exception");
         }
+        assert(Obj::num_default_constructed == SIZE / 2 - 1);
+        assert(Obj::GetAliveObjectCount() == 0);
     }
-}
-
-void TestReset() {
-    C::Reset();
+    Obj::ResetCounters();
     {
-        Optional<C> o{C()};
-        assert(o.HasValue());
-        o.Reset();
-        assert(!o.HasValue());
+        Vector<Obj> v(SIZE);
+        try {
+            v[SIZE / 2].throw_on_copy = true;
+            Vector<Obj> v_copy(v);
+            assert(false && "Exception is expected");
+        } catch (const std::runtime_error&) {
+            assert(Obj::num_copied == SIZE / 2);
+        } catch (...) {
+            // Unexpected error
+            assert(false && "Unexpected exception");
+        }
+        assert(Obj::GetAliveObjectCount() == SIZE);
+    }
+    Obj::ResetCounters();
+    {
+        Vector<Obj> v(SIZE);
+        try {
+            v[SIZE - 1].throw_on_copy = true;
+            v.Reserve(SIZE * 2);
+            assert(false && "Exception is expected");
+        } catch (const std::runtime_error&) {
+            assert(Obj::num_copied == SIZE - 1);
+        } catch (...) {
+            // Unexpected error
+            assert(false && "Unexpected exception");
+        }
+        assert(v.Capacity() == SIZE);
+        assert(v.Size() == SIZE);
+        assert(Obj::GetAliveObjectCount() == SIZE);
     }
 }
 
 int main() {
-    try {
-        TestInitialization();
-        TestAssignment();
-        TestMoveAssignment();
-        TestValueAccess();
-        TestReset();
-    } catch (...) {
-        assert(false);
-    }
-}
+     Test1();
+     Test2();
+ }
