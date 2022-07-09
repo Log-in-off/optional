@@ -1,7 +1,6 @@
 #include "vector.h"
 
 #include <stdexcept>
-#include <iostream>
 
 namespace {
 
@@ -45,7 +44,6 @@ struct Obj {
     }
 
     static int GetAliveObjectCount() {
-        std::cout << num_default_constructed << " " << num_copied << " " << num_moved << " " << num_constructed_with_id << " " << num_destroyed << std::endl;
         return num_default_constructed + num_copied + num_moved + num_constructed_with_id
             - num_destroyed;
     }
@@ -242,7 +240,7 @@ void Test3() {
         assert(v_small.Size() == v.Size());
         assert(v_small.Capacity() == MEDIUM_SIZE + 1);
         v_small[MEDIUM_SIZE - 1].id = ID;
-        std::cout << " " << Obj::num_copied << " " << num_copies << std::endl;
+
         assert(Obj::num_copied - num_copies == MEDIUM_SIZE - (MEDIUM_SIZE / 2));
     }
 }

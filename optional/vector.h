@@ -124,14 +124,17 @@ public:
 
                     if (rhs.size_ < size_)
                     {
-                        for (size_t i = 0; i < rhs.size_; i++)
-                            *(data_.GetAddress()+i) = *(rhs.data_.GetAddress()+i);
+                        //for (size_t i = 0; i < rhs.size_; i++)
+                        //    *(data_.GetAddress()+i) = *(rhs.data_.GetAddress()+i);
+                        std::copy(rhs.data_.GetAddress(), rhs.data_.GetAddress() + rhs.size_, data_.GetAddress());
                         std::destroy_n(data_.GetAddress()+rhs.size_, size_-rhs.size_);
                     }
                     else
                     {
-                        for (size_t i = 0; i < size_; i++)
-                            *(data_.GetAddress()+i) = *(rhs.data_.GetAddress()+i);
+                        //for (size_t i = 0; i < size_; i++)
+                        //    *(data_.GetAddress()+i) = *(rhs.data_.GetAddress()+i);
+                        //
+                        std::copy(rhs.data_.GetAddress(), rhs.data_.GetAddress() + size_, data_.GetAddress());
                         std::uninitialized_copy_n(rhs.data_.GetAddress()+size_, rhs.size_-size_, data_.GetAddress()+size_);
                     }
                     size_ = rhs.size_;
