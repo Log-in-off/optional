@@ -122,6 +122,23 @@ public:
         Reset();
     }
 
+    template <typename... U>
+    void Emplace(U&&... arg)
+    {
+        if (HasValue())
+        {
+            Reset();
+        }
+        //T(std::forward<U>(arg)...);
+        //Optional<T> tem(std::forward<U>(arg)...);
+        //*this = std::move(tem);
+        obj_ = new (data_) T(std::forward<U>(arg)...);
+
+        is_initialized_ = true;
+
+
+    }
+
     bool HasValue() const
     {
         return is_initialized_;
