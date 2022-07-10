@@ -207,6 +207,21 @@ public:
         size_++;
     }
 
+    template <typename... Args>
+    T& EmplaceBack(Args&&... args)
+    {
+        if (size_ < data_.Capacity())
+            new (data_ + size_) T(std::forward<Args>(args)...);
+        else
+        {
+            RawMemory<T> new_data(size_?size_*2:1);
+            new (new_data + size_) T(std::forward<Args>(args)...);
+            SwapData(new_data);
+        }
+        size_++;
+        return *(data_.GetAddress()+size_ -1);
+    }
+
     void PopBack()  noexcept
     {
         std::destroy(data_.GetAddress()+size_-1, data_.GetAddress()+size_);
