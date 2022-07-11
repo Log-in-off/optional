@@ -4,6 +4,7 @@
 #include <new>
 #include <utility>
 #include <memory>
+#include <iostream>
 
 template <typename T>
 class RawMemory {
@@ -83,6 +84,148 @@ private:
 template <typename T>
 class Vector {
 public:
+    using iterator = T*;
+    using const_iterator = const T*;
+
+    iterator begin() noexcept
+    {
+        return data_.GetAddress();
+    }
+    iterator end() noexcept
+    {
+        return data_.GetAddress()+size_;
+    }
+    const_iterator begin() const noexcept
+    {
+        return data_.GetAddress();
+    }
+    const_iterator end() const noexcept
+    {
+        return data_.GetAddress()+size_;
+    }
+    const_iterator cbegin() const noexcept
+    {
+        return data_.GetAddress();
+    }
+    const_iterator cend() const noexcept
+    {
+        return data_.GetAddress()+size_;
+    }
+
+    template <typename... Args>
+    iterator Emplace(const_iterator pos, Args&&... args)
+    {
+        //new (new_data + size_) T(std::forward<Args>(args)...);
+        int shift = pos - data_.GetAddress();
+        iterator p = data_.GetAddress() + shift;
+
+        if (size_<data_.Capacity())
+        {
+            if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+                std::move_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+            }
+            else
+            {
+                std::copy_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+            }
+
+
+            new(p) T(std::forward<Args>(args)...);
+        }
+        else
+        {
+            RawMemory<T> new_data(size_ ? size_*2:1);
+            new(new_data.GetAddress() + shift) T(std::forward<Args>(args)...);
+
+            if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+                std::uninitialized_move_n(data_.GetAddress(), shift, new_data.GetAddress());
+                std::uninitialized_move_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift+1);
+                }
+            else {
+                std::uninitialized_copy_n(data_.GetAddress(), shift, new_data.GetAddress());
+                std::uninitialized_copy_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift +1);
+                }
+            std::destroy_n(data_.GetAddress(), size_);
+            data_.Swap(new_data);
+        }
+        size_++;
+        return data_.GetAddress() + shift;
+
+    }
+
+    iterator Insert(const_iterator pos, const T& value)
+    {
+        return Emplace(pos, value);
+        //int shift = pos - data_.GetAddress();
+        //iterator p = data_.GetAddress() + shift;
+
+        //if (size_<data_.Capacity())
+        //{
+        //    std::move_backward(p, end(), p+1);
+        //    new(p) T(value);
+        //}
+        //else
+        //{
+        //    RawMemory<T> new_data(size_?size_*2:1);
+        //    new(new_data.GetAddress() + shift) T(value);
+
+        //    if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+        //        std::uninitialized_move_n(data_.GetAddress(), shift, new_data.GetAddress());
+        //        std::uninitialized_move_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift+1);
+        //        }
+        //    else {
+        //        std::uninitialized_copy_n(data_.GetAddress(), shift, new_data.GetAddress());
+        //        std::uninitialized_copy_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift +1);
+        //        }
+        //    std::destroy_n(data_.GetAddress(), size_);
+        //    data_.Swap(new_data);
+        //}
+        //size_++;
+        //return data_.GetAddress() + shift;
+    }
+
+    iterator Insert(const_iterator pos, T&& value)
+    {
+        return Emplace(pos, value);
+        //int shift = pos - data_.GetAddress();
+        //iterator p = data_.GetAddress() + shift;
+
+        //if (size_<data_.Capacity())
+        //{
+        //    //std::move_backward(p, end(), p+1);
+        //    if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+        //        std::move_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+        //    }
+        //    else
+        //    {
+        //        std::copy_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+        //    }
+        //    new(p) T(std::move(value));
+        //}
+        //else
+        //{
+        //    RawMemory<T> new_data(size_?size_*2:1);
+        //    new(new_data.GetAddress() + shift) T(std::move(value));
+
+        //    if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+        //        std::uninitialized_move_n(data_.GetAddress(), shift, new_data.GetAddress());
+        //        std::uninitialized_move_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift+1);
+        //        }
+        //    else {
+        //        std::uninitialized_copy_n(data_.GetAddress(), shift, new_data.GetAddress());
+        //        std::uninitialized_copy_n(data_.GetAddress()+shift, size_-shift, new_data.GetAddress()+shift +1);
+        //        }
+        //    std::destroy_n(data_.GetAddress(), size_);
+        //    data_.Swap(new_data);
+        //}
+        //size_++;
+        //return data_.GetAddress() + shift;
+    }
+
+    iterator Erase(const_iterator pos)
+    {
+    }
+
     Vector() = default;
 
     explicit Vector(size_t size)
