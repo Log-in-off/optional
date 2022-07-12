@@ -1,5 +1,5 @@
-#define TEST_OPTIONAL 0
-#define TEST_VECTOR 1
+#define TEST_OPTIONAL 1
+#define TEST_VECTOR 0
 
 #if TEST_OPTIONAL
 #include "optional.h"
@@ -686,6 +686,50 @@ void Test6() {
         assert(Obj::num_move_assigned == 0);
         assert(Obj::GetAliveObjectCount() == 1);
     }
+
+    {
+        std::vector<int> v(5);
+        v[0] = 1;
+        v[1] = 2;
+        v[2] = 3;
+        v[3] = 4;
+        v[4] = 5;
+
+        for(auto i= v.begin(); i !=v.end(); i++)
+            std::cout << *i;
+        std::cout << std::endl;
+
+        v.reserve(20);
+        v.emplace(v.begin() + 2, v[3]);
+
+        for(auto i= v.begin(); i !=v.end(); i++)
+            std::cout << *i;
+        std::cout << std::endl;
+        assert(v[2] == 4);
+    }
+    //{
+    //    Vector<int> v(5);
+    //    v[0] = 1;
+    //    v[1] = 2;
+    //    v[2] = 3;
+    //    v[3] = 4;
+    //    v[4] = 5;
+
+    //    for(auto i= v.begin(); i !=v.end(); i++)
+    //        std::cout << *i;
+    //    std::cout << std::endl;
+
+    //    v.Reserve(20);
+    //    v.Emplace(v.begin() + 2, v[3]);
+
+    //    for(auto i= v.begin(); i !=v.end(); i++)
+    //        std::cout << *i;
+    //    std::cout << std::endl;
+
+    //    assert(v[2] == 4);
+    //}
+
+
     {
         Obj::ResetCounters();
         Vector<Obj> v;
@@ -703,6 +747,21 @@ void Test6() {
     }
     {
         Obj::ResetCounters();
+        std::vector<Obj> v;
+        v.reserve(SIZE);
+        v.emplace(v.end(), Obj{1});
+        assert(v.size() == 1);
+        assert(v.capacity() >= v.size());
+        assert(Obj::num_moved == 1);
+        assert(Obj::num_constructed_with_id == 1);
+        assert(Obj::num_copied == 0);
+        assert(Obj::num_assigned == 0);
+        assert(Obj::num_move_assigned == 0);
+        assert(Obj::GetAliveObjectCount() == 1);
+    }
+
+    {
+        Obj::ResetCounters();
         Vector<Obj> v{SIZE};
         Vector<Obj>::iterator pos = v.Insert(v.cbegin() + 1, Obj{1});
         assert(v.Size() == SIZE + 1);
@@ -713,6 +772,19 @@ void Test6() {
         assert(Obj::num_default_constructed == SIZE);
         assert(Obj::GetAliveObjectCount() == SIZE + 1);
     }
+    {
+        Obj::ResetCounters();
+        std::vector<Obj> v{SIZE};
+        std::vector<Obj>::iterator pos = v.insert(v.cbegin() + 1, Obj{1});
+        assert(v.size() == SIZE + 1);
+        assert(v.capacity() == SIZE * 2);
+        assert(&*pos == &v[1]);
+        assert(v[1].id == 1);
+        assert(Obj::num_copied == 0);
+        assert(Obj::num_default_constructed == SIZE);
+        assert(Obj::GetAliveObjectCount() == SIZE + 1);
+    }
+
 //    {
 //        Vector<TestObj> v{SIZE};
 //        v.Insert(v.cbegin() + 2, v[0]);
@@ -780,7 +852,24 @@ void Test6() {
         assert(Obj::num_copied == 0);
         assert(Obj::num_default_constructed == SIZE);
         assert(Obj::num_constructed_with_id_and_name == 1);
-        std::cout << Obj::num_moved << " " <<  old_num_moved << std::endl;
+        assert(Obj::num_moved == old_num_moved + 1);
+        assert(Obj::num_move_assigned == SIZE - 3);
+        assert(Obj::num_assigned == 0);
+    }
+    {
+        Obj::ResetCounters();
+        std::vector<Obj> v{SIZE};
+        v.reserve(SIZE * 2);
+        const int old_num_moved = Obj::num_moved;
+        assert(v.capacity() == SIZE * 2);
+        v.emplace(v.cbegin() + 3, ID, "Ivan"s);
+        assert(v.size() == SIZE + 1);
+        //assert(&*pos == &v[3]);
+        assert(v[3].id == ID);
+        assert(v[3].name == "Ivan");
+        assert(Obj::num_copied == 0);
+        assert(Obj::num_default_constructed == SIZE);
+        assert(Obj::num_constructed_with_id_and_name == 1);
         assert(Obj::num_moved == old_num_moved + 1);
         assert(Obj::num_move_assigned == SIZE - 3);
         assert(Obj::num_assigned == 0);

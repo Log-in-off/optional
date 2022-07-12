@@ -120,15 +120,16 @@ public:
 
         if (size_<data_.Capacity())
         {
-            if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
-                std::move_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+            if (!size_)
+            {
+                new (end()) T(std::forward<Args>(args)...);
             }
             else
             {
-                std::copy_backward(p, data_.GetAddress()+size_-1, data_.GetAddress()+size_);
+                new(end()) T(std::forward<T>(*(end()-1)));
+                std::move_backward(p, data_.GetAddress()+size_ - 1, data_.GetAddress()+size_);
+                *p = T(std::forward<Args>(args)...);
             }
-
-            new(p) T(std::forward<Args>(args)...);
         }
         else
         {
@@ -158,11 +159,20 @@ public:
 
     iterator Insert(const_iterator pos, T&& value)
     {
-        return Emplace(pos, value);
+        return Emplace(pos, std::move(value));
     }
 
     iterator Erase(const_iterator pos)
     {
+        int shift = pos - data_.GetAddress();
+        iterator p = data_.GetAddress() + shift;
+        std::move(p+1, end(), p);
+        std::destroy_n(data_.GetAddress()+size_-1, 1);
+        size_--;
+        if (!size_)
+            return end();
+
+        return p;
     }
 
     Vector() = default;
