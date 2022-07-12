@@ -15,6 +15,7 @@ template <typename T>
 class Optional {
 public:
     Optional() = default;
+
     Optional(const T& value)
     {
         obj_ = new (data_) T(value);
@@ -140,11 +141,11 @@ public:
 
     // Операторы * и -> не должны делать никаких проверок на пустоту Optional.
     // Эти проверки остаются на совести программиста
-    T& operator*()
+    T& operator*() &
     {
         return *obj_;
     }
-    const T& operator*() const
+    const T& operator*() const &
     {
         return *obj_;
     }
@@ -159,14 +160,24 @@ public:
         return obj_;
     }
 
-    // Метод Value() генерирует исключение BadOptionalAccess, если Optional пуст
-    T& Value()
+    T&& operator*() && {
+         return std::move(*obj_);
+    }
+
+    T&& Value() &&
+    {
+        if (!HasValue())
+            throw BadOptionalAccess{};
+        return std::move(*obj_);
+    }
+
+    T& Value() &
     {
         if (!HasValue())
             throw BadOptionalAccess{};
         return *obj_;
     }
-    const T& Value() const
+    const T& Value() const &
     {
         if (!HasValue())
             throw BadOptionalAccess{};

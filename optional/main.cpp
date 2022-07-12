@@ -4,235 +4,308 @@
 #if TEST_OPTIONAL
 #include "optional.h"
 
- #include <cassert>
- #include <memory>
- struct C {
-     C() noexcept {
-         ++def_ctor;
-     }
-     C(const C& /*other*/) noexcept {
-         ++copy_ctor;
-     }
-     C(C&& /*other*/) noexcept {
-         ++move_ctor;
-     }
-     C& operator=(const C& other) noexcept {
-         if (this != &other) {
-             ++copy_assign;
-         }
-         return *this;
-     }
-     C& operator=(C&& /*other*/) noexcept {
-         ++move_assign;
-         return *this;
-     }
-     ~C() {
-         ++dtor;
-     }
+#include <cassert>
+#include <memory>
 
-     static size_t InstanceCount() {
-         return def_ctor + copy_ctor + move_ctor - dtor;
-     }
+struct C {
+    C() noexcept {
+        ++def_ctor;
+    }
+    C(const C& /*other*/) noexcept {
+        ++copy_ctor;
+    }
+    C(C&& /*other*/) noexcept {
+        ++move_ctor;
+    }
+    C& operator=(const C& other) noexcept {
+        if (this != &other) {
+            ++copy_assign;
+        }
+        return *this;
+    }
+    C& operator=(C&& /*other*/) noexcept {
+        ++move_assign;
+        return *this;
+    }
+    ~C() {
+        ++dtor;
+    }
 
-     static void Reset() {
-         def_ctor = 0;
-         copy_ctor = 0;
-         move_ctor = 0;
-         copy_assign = 0;
-         move_assign = 0;
-         dtor = 0;
-     }
+    void Update() const& {
+        ++const_lvalue_call_count;
+    }
 
-     inline static size_t def_ctor = 0;
-     inline static size_t copy_ctor = 0;
-     inline static size_t move_ctor = 0;
-     inline static size_t copy_assign = 0;
-     inline static size_t move_assign = 0;
-     inline static size_t dtor = 0;
- };
+    void Update() & {
+        ++lvalue_call_count;
+    }
 
- void TestInitialization() {
-     C::Reset();
-     {
-         Optional<C> o;
-         assert(!o.HasValue());
-         assert(C::InstanceCount() == 0);
-     }
-     assert(C::InstanceCount() == 0);
+    void Update() && {
+        ++rvalue_call_count;
+    }
 
-     C::Reset();
-     {
-         C c;
-         Optional<C> o(c);
-         assert(o.HasValue());
-         assert(C::def_ctor == 1 && C::copy_ctor == 1);
-         assert(C::InstanceCount() == 2);
-     }
-     assert(C::InstanceCount() == 0);
+    static size_t InstanceCount() {
+        return def_ctor + copy_ctor + move_ctor - dtor;
+    }
 
-     C::Reset();
-     {
-         C c;
-         Optional<C> o(std::move(c));
-         assert(o.HasValue());
-         assert(C::def_ctor == 1 && C::move_ctor == 1 && C::copy_ctor == 0 && C::copy_assign == 0
-                && C::move_assign == 0);
-         assert(C::InstanceCount() == 2);
-     }
-     assert(C::InstanceCount() == 0);
+    static void Reset() {
+        def_ctor = 0;
+        copy_ctor = 0;
+        move_ctor = 0;
+        copy_assign = 0;
+        move_assign = 0;
+        dtor = 0;
+        lvalue_call_count = 0;
+        rvalue_call_count = 0;
+        const_lvalue_call_count = 0;
+    }
 
-     C::Reset();
-     {
-         C c;
-         Optional<C> o1(c);
-         const Optional<C> o2(o1);
-         assert(o1.HasValue());
-         assert(o2.HasValue());
-         assert(C::def_ctor == 1 && C::move_ctor == 0 && C::copy_ctor == 2 && C::copy_assign == 0
-                && C::move_assign == 0);
-         assert(C::InstanceCount() == 3);
-     }
-     assert(C::InstanceCount() == 0);
+    inline static size_t def_ctor = 0;
+    inline static size_t copy_ctor = 0;
+    inline static size_t move_ctor = 0;
+    inline static size_t copy_assign = 0;
+    inline static size_t move_assign = 0;
+    inline static size_t dtor = 0;
 
-     C::Reset();
-     {
-         C c;
-         Optional<C> o1(c);
-         const Optional<C> o2(std::move(o1));
-         assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::move_ctor == 1 && C::copy_assign == 0
-                && C::move_assign == 0);
-         assert(C::InstanceCount() == 3);
-     }
-     assert(C::InstanceCount() == 0);
- }
+    inline static size_t lvalue_call_count = 0;
+    inline static size_t rvalue_call_count = 0;
+    inline static size_t const_lvalue_call_count = 0;
+};
 
- void TestAssignment() {
-     Optional<C> o1;
-     Optional<C> o2;
-     {  // Assign a value to empty
-         C::Reset();
-         C c;
-         o1 = c;
-         assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::dtor == 0);
-     }
-     {  // Assign a non-empty to empty
-         C::Reset();
-         o2 = o1;
-         assert(C::copy_ctor == 1 && C::copy_assign == 0 && C::dtor == 0);
-     }
-     {  // Assign non-empty to non-empty
-         C::Reset();
-         o2 = o1;
-         assert(C::copy_ctor == 0 && C::copy_assign == 1 && C::dtor == 0);
-     }
-     {  // Assign empty to non-empty
-         C::Reset();
-         Optional<C> empty;
-         o1 = empty;
-         assert(C::copy_ctor == 0 && C::dtor == 1);
-         assert(!o1.HasValue());
-     }
- }
+void TestInitialization() {
+    C::Reset();
+    {
+        Optional<C> o;
+        assert(!o.HasValue());
+        assert(C::InstanceCount() == 0);
+    }
+    assert(C::InstanceCount() == 0);
 
- void TestMoveAssignment() {
-     {  // Assign a value to empty
-         Optional<C> o1;
-         C::Reset();
-         C c;
-         o1 = std::move(c);
-         assert(C::def_ctor == 1 && C::move_ctor == 1 && C::dtor == 0);
-     }
-     {  // Assign a non-empty to empty
-         Optional<C> o1;
-         Optional<C> o2{C{}};
-         C::Reset();
-         o1 = std::move(o2);
-         assert(C::move_ctor == 1 && C::move_assign == 0 && C::dtor == 0);
-     }
-     {  // Assign non-empty to non-empty
-         Optional<C> o1{C{}};
-         Optional<C> o2{C{}};
-         C::Reset();
-         o2 = std::move(o1);
-         assert(C::copy_ctor == 0 && C::move_assign == 1 && C::dtor == 0);
-     }
-     {  // Assign empty to non-empty
-         Optional<C> o1{C{}};
-         C::Reset();
-         Optional<C> empty;
-         o1 = std::move(empty);
-         assert(C::copy_ctor == 0 && C::move_ctor == 0 && C::move_assign == 0 && C::dtor == 1);
-         assert(!o1.HasValue());
-     }
- }
+    C::Reset();
+    {
+        C c;
+        Optional<C> o(c);
+        assert(o.HasValue());
+        assert(C::def_ctor == 1 && C::copy_ctor == 1);
+        assert(C::InstanceCount() == 2);
+    }
+    assert(C::InstanceCount() == 0);
 
- void TestValueAccess() {
-     using namespace std::literals;
-     {
-         Optional<std::string> o;
-         o = "hello"s;
-         assert(o.HasValue());
-         assert(o.Value() == "hello"s);
-         assert(&*o == &o.Value());
-         assert(o->length() == 5);
-     }
-     {
-         try {
-             Optional<int> o;
-             [[maybe_unused]] int v = o.Value();
-             assert(false);
-         } catch (const BadOptionalAccess& /*e*/) {
-         } catch (...) {
-             assert(false);
-         }
-     }
- }
+    C::Reset();
+    {
+        C c;
+        Optional<C> o(std::move(c));
+        assert(o.HasValue());
+        assert(C::def_ctor == 1 && C::move_ctor == 1 && C::copy_ctor == 0 && C::copy_assign == 0
+               && C::move_assign == 0);
+        assert(C::InstanceCount() == 2);
+    }
+    assert(C::InstanceCount() == 0);
 
- void TestReset() {
-     C::Reset();
-     {
-         Optional<C> o{C()};
-         assert(o.HasValue());
-         o.Reset();
-         assert(!o.HasValue());
-     }
- }
+    C::Reset();
+    {
+        C c;
+        Optional<C> o1(c);
+        const Optional<C> o2(o1);
+        assert(o1.HasValue());
+        assert(o2.HasValue());
+        assert(C::def_ctor == 1 && C::move_ctor == 0 && C::copy_ctor == 2 && C::copy_assign == 0
+               && C::move_assign == 0);
+        assert(C::InstanceCount() == 3);
+    }
+    assert(C::InstanceCount() == 0);
 
- void TestEmplace() {
-     struct S {
-         S(int i, std::unique_ptr<int>&& p)
-             : i(i)
-             , p(std::move(p))  //
-         {
-         }
-         int i;
-         std::unique_ptr<int> p;
-     };
+    C::Reset();
+    {
+        C c;
+        Optional<C> o1(c);
+        const Optional<C> o2(std::move(o1));
+        assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::move_ctor == 1 && C::copy_assign == 0
+               && C::move_assign == 0);
+        assert(C::InstanceCount() == 3);
+    }
+    assert(C::InstanceCount() == 0);
+}
 
-     Optional<S> o;
-     o.Emplace(1, std::make_unique<int>(2));
-     assert(o.HasValue());
-     assert(o->i == 1);
-     assert(*(o->p) == 2);
+void TestAssignment() {
+    Optional<C> o1;
+    Optional<C> o2;
+    {  // Assign a value to empty
+        C::Reset();
+        C c;
+        o1 = c;
+        assert(C::def_ctor == 1 && C::copy_ctor == 1 && C::dtor == 0);
+    }
+    {  // Assign a non-empty to empty
+        C::Reset();
+        o2 = o1;
+        assert(C::copy_ctor == 1 && C::copy_assign == 0 && C::dtor == 0);
+    }
+    {  // Assign non-empty to non-empty
+        C::Reset();
+        o2 = o1;
+        assert(C::copy_ctor == 0 && C::copy_assign == 1 && C::dtor == 0);
+    }
+    {  // Assign empty to non-empty
+        C::Reset();
+        Optional<C> empty;
+        o1 = empty;
+        assert(C::copy_ctor == 0 && C::dtor == 1);
+        assert(!o1.HasValue());
+    }
+}
 
-     o.Emplace(3, std::make_unique<int>(4));
-     assert(o.HasValue());
-     assert(o->i == 3);
-     assert(*(o->p) == 4);
- }
+void TestMoveAssignment() {
+    {  // Assign a value to empty
+        Optional<C> o1;
+        C::Reset();
+        C c;
+        o1 = std::move(c);
+        assert(C::def_ctor == 1 && C::move_ctor == 1 && C::dtor == 0);
+    }
+    {  // Assign a non-empty to empty
+        Optional<C> o1;
+        Optional<C> o2{C{}};
+        C::Reset();
+        o1 = std::move(o2);
+        assert(C::move_ctor == 1 && C::move_assign == 0 && C::dtor == 0);
+    }
+    {  // Assign non-empty to non-empty
+        Optional<C> o1{C{}};
+        Optional<C> o2{C{}};
+        C::Reset();
+        o2 = std::move(o1);
+        assert(C::copy_ctor == 0 && C::move_assign == 1 && C::dtor == 0);
+    }
+    {  // Assign empty to non-empty
+        Optional<C> o1{C{}};
+        C::Reset();
+        Optional<C> empty;
+        o1 = std::move(empty);
+        assert(C::copy_ctor == 0 && C::move_ctor == 0 && C::move_assign == 0 && C::dtor == 1);
+        assert(!o1.HasValue());
+    }
+}
 
- int main() {
-     try {
-         TestInitialization();
-         TestAssignment();
-         TestMoveAssignment();
-         TestValueAccess();
-         TestReset();
-         TestEmplace();
-     } catch (...) {
-         assert(false);
-     }
- }
+void TestValueAccess() {
+    using namespace std::literals;
+    {
+        Optional<std::string> o;
+        o = "hello"s;
+        assert(o.HasValue());
+        assert(o.Value() == "hello"s);
+        assert(&*o == &o.Value());
+        assert(o->length() == 5);
+    }
+    {
+        try {
+            Optional<int> o;
+            [[maybe_unused]] int v = o.Value();
+            assert(false);
+        } catch (const BadOptionalAccess& /*e*/) {
+        } catch (...) {
+            assert(false);
+        }
+    }
+}
+
+void TestReset() {
+    C::Reset();
+    {
+        Optional<C> o{C()};
+        assert(o.HasValue());
+        o.Reset();
+        assert(!o.HasValue());
+    }
+}
+
+void TestEmplace() {
+    struct S {
+        S(int i, std::unique_ptr<int>&& p)
+            : i(i)
+            , p(std::move(p))  //
+        {
+        }
+        int i;
+        std::unique_ptr<int> p;
+    };
+
+    Optional<S> o;
+    o.Emplace(1, std::make_unique<int>(2));
+    assert(o.HasValue());
+    assert(o->i == 1);
+    assert(*(o->p) == 2);
+
+    o.Emplace(3, std::make_unique<int>(4));
+    assert(o.HasValue());
+    assert(o->i == 3);
+    assert(*(o->p) == 4);
+}
+
+void TestRefQualifiedMethodOverloading() {
+    {
+        C::Reset();
+        C val = *Optional<C>(C{});
+        assert(C::copy_ctor == 0);
+        assert(C::move_ctor == 2);
+        assert(C::def_ctor == 1);
+        assert(C::copy_assign == 0);
+        assert(C::move_assign == 0);
+    }
+    {
+        C::Reset();
+        C val = Optional<C>(C{}).Value();
+        assert(C::copy_ctor == 0);
+        assert(C::move_ctor == 2);
+        assert(C::def_ctor == 1);
+        assert(C::copy_assign == 0);
+        assert(C::move_assign == 0);
+    }
+    {
+        C::Reset();
+        Optional<C> opt(C{});
+        (*opt).Update();
+        assert(C::lvalue_call_count == 1);
+        assert(C::rvalue_call_count == 0);
+        (*std::move(opt)).Update();
+        assert(C::lvalue_call_count == 1);
+        assert(C::rvalue_call_count == 1);
+    }
+    {
+        C::Reset();
+        const Optional<C> opt(C{});
+        (*opt).Update();
+        assert(C::const_lvalue_call_count == 1);
+    }
+    {
+        C::Reset();
+        Optional<C> opt(C{});
+        opt.Value().Update();
+        assert(C::lvalue_call_count == 1);
+        assert(C::rvalue_call_count == 0);
+        std::move(opt).Value().Update();
+        assert(C::lvalue_call_count == 1);
+    }
+    {
+        C::Reset();
+        const Optional<C> opt(C{});
+        opt.Value().Update();
+        assert(C::const_lvalue_call_count == 1);
+    }
+}
+
+int main() {
+    try {
+        TestInitialization();
+        TestAssignment();
+        TestMoveAssignment();
+        TestValueAccess();
+        TestReset();
+        TestEmplace();
+        TestRefQualifiedMethodOverloading();
+    } catch (...) {
+        assert(false);
+    }
+}
 #endif
 
 #if TEST_VECTOR
@@ -242,7 +315,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-//#include <algorithm>
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -325,8 +398,6 @@ struct Obj {
     }
 
     static int GetAliveObjectCount() {
-        std::cout << num_default_constructed << " " << num_copied << " " << num_moved << " " << num_constructed_with_id
-                     << " " << num_constructed_with_id_and_name << " " << num_destroyed << std::endl;
         return num_default_constructed + num_copied + num_moved + num_constructed_with_id
             + num_constructed_with_id_and_name - num_destroyed;
     }
@@ -669,7 +740,6 @@ void Test6() {
         assert(v[1].id == obj.id);
         assert(Obj::num_copied == 1);
         assert(Obj::num_default_constructed == SIZE);
-        std::cout << Obj::GetAliveObjectCount() << std::endl;
         assert(Obj::GetAliveObjectCount() == SIZE + 2);
     }
     {
@@ -688,45 +758,14 @@ void Test6() {
     }
 
     {
-        std::vector<int> v(5);
-        v[0] = 1;
-        v[1] = 2;
-        v[2] = 3;
-        v[3] = 4;
-        v[4] = 5;
-
-        for(auto i= v.begin(); i !=v.end(); i++)
-            std::cout << *i;
-        std::cout << std::endl;
-
-        v.reserve(20);
-        v.emplace(v.begin() + 2, v[3]);
-
-        for(auto i= v.begin(); i !=v.end(); i++)
-            std::cout << *i;
-        std::cout << std::endl;
-        assert(v[2] == 4);
-    }
-
-    {
         Vector<int> v(5);
         v[0] = 1;
         v[1] = 2;
         v[2] = 3;
         v[3] = 4;
         v[4] = 5;
-
-        for(auto i= v.begin(); i !=v.end(); i++)
-            std::cout << *i;
-        std::cout << std::endl;
-
         v.Reserve(20);
         v.Emplace(v.begin() + 2, v[3]);
-
-        for(auto i= v.begin(); i !=v.end(); i++)
-            std::cout << *i;
-        std::cout << std::endl;
-
         assert(v[2] == 4);
     }
 
@@ -786,27 +825,27 @@ void Test6() {
         assert(Obj::GetAliveObjectCount() == SIZE + 1);
     }
 
-//    {
-//        Vector<TestObj> v{SIZE};
-//        v.Insert(v.cbegin() + 2, v[0]);
-//        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
-//            return obj.IsAlive();
-//        }));
-//    }
-//    {
-//        Vector<TestObj> v{SIZE};
-//        v.Insert(v.cbegin() + 2, std::move(v[0]));
-//        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
-//            return obj.IsAlive();
-//        }));
-//    }
-//    {
-//        Vector<TestObj> v{SIZE};
-//        v.Emplace(v.cbegin() + 2, std::move(v[0]));
-//        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
-//            return obj.IsAlive();
-//        }));
-//    }
+    {
+        Vector<TestObj> v{SIZE};
+        v.Insert(v.cbegin() + 2, v[0]);
+        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
+            return obj.IsAlive();
+        }));
+    }
+    {
+        Vector<TestObj> v{SIZE};
+        v.Insert(v.cbegin() + 2, std::move(v[0]));
+        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
+            return obj.IsAlive();
+        }));
+    }
+    {
+        Vector<TestObj> v{SIZE};
+        v.Emplace(v.cbegin() + 2, std::move(v[0]));
+        assert(std::all_of(v.begin(), v.end(), [](const TestObj& obj) {
+            return obj.IsAlive();
+        }));
+    }
     {
         Obj::ResetCounters();
         Vector<Obj> v{SIZE};
@@ -857,24 +896,7 @@ void Test6() {
         assert(Obj::num_move_assigned == SIZE - 3);
         assert(Obj::num_assigned == 0);
     }
-    {
-        Obj::ResetCounters();
-        std::vector<Obj> v{SIZE};
-        v.reserve(SIZE * 2);
-        const int old_num_moved = Obj::num_moved;
-        assert(v.capacity() == SIZE * 2);
-        v.emplace(v.cbegin() + 3, ID, "Ivan"s);
-        assert(v.size() == SIZE + 1);
-        //assert(&*pos == &v[3]);
-        assert(v[3].id == ID);
-        assert(v[3].name == "Ivan");
-        assert(Obj::num_copied == 0);
-        assert(Obj::num_default_constructed == SIZE);
-        assert(Obj::num_constructed_with_id_and_name == 1);
-        assert(Obj::num_moved == old_num_moved + 1);
-        assert(Obj::num_move_assigned == SIZE - 3);
-        assert(Obj::num_assigned == 0);
-    }
+
     {
         Obj::ResetCounters();
         Vector<Obj> v{SIZE};
