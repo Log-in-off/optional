@@ -126,9 +126,10 @@ public:
             }
             else
             {
+                T tmp = T(std::forward<Args>(args)...);
                 new(end()) T(std::forward<T>(*(end()-1)));
                 std::move_backward(p, data_.GetAddress()+size_ - 1, data_.GetAddress()+size_);
-                *p = T(std::forward<Args>(args)...);
+                *p = std::move(tmp);
             }
         }
         else

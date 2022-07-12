@@ -1,5 +1,5 @@
-#define TEST_OPTIONAL 1
-#define TEST_VECTOR 0
+#define TEST_OPTIONAL 0
+#define TEST_VECTOR 1
 
 #if TEST_OPTIONAL
 #include "optional.h"
@@ -707,27 +707,28 @@ void Test6() {
         std::cout << std::endl;
         assert(v[2] == 4);
     }
-    //{
-    //    Vector<int> v(5);
-    //    v[0] = 1;
-    //    v[1] = 2;
-    //    v[2] = 3;
-    //    v[3] = 4;
-    //    v[4] = 5;
 
-    //    for(auto i= v.begin(); i !=v.end(); i++)
-    //        std::cout << *i;
-    //    std::cout << std::endl;
+    {
+        Vector<int> v(5);
+        v[0] = 1;
+        v[1] = 2;
+        v[2] = 3;
+        v[3] = 4;
+        v[4] = 5;
 
-    //    v.Reserve(20);
-    //    v.Emplace(v.begin() + 2, v[3]);
+        for(auto i= v.begin(); i !=v.end(); i++)
+            std::cout << *i;
+        std::cout << std::endl;
 
-    //    for(auto i= v.begin(); i !=v.end(); i++)
-    //        std::cout << *i;
-    //    std::cout << std::endl;
+        v.Reserve(20);
+        v.Emplace(v.begin() + 2, v[3]);
 
-    //    assert(v[2] == 4);
-    //}
+        for(auto i= v.begin(); i !=v.end(); i++)
+            std::cout << *i;
+        std::cout << std::endl;
+
+        assert(v[2] == 4);
+    }
 
 
     {
